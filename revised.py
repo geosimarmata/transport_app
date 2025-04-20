@@ -5,34 +5,26 @@ import difflib
 from io import BytesIO
 
 # Load historical trip data
-import pandas as pd
-import streamlit as st
-
-st.title("JEJE Vendor Tiering & Recommendation System")
-
 @st.cache_data
-def load_data(uploaded_file):
-    df = pd.read_csv(uploaded_file)
-    df['nama_shipper'] = df['nama_shipper'].fillna('Unknown')
-    df = df[~df['trip_status'].isin(['Cancel', 'Unfulfill', 'Open'])]
+def load_data():
+    try:
+        df = pd.read_csv('q_tp_record_2025-04-13T07_02_58.867855Z')  # Make sure this file is in the same folder
+        df['nama_shipper'] = df['nama_shipper'].fillna('Unknown')
+        df = df[~df['trip_status'].isin(['Cancel', 'Unfulfill', 'Open'])]
 
-    df['origin_norm'] = df['origin_location_name'].str.strip().str.lower()
-    df['destination_norm'] = df['destination_location_name'].str.strip().str.lower()
-    df['multi_drop_norm'] = df['multi_drop'].fillna('').str.lower()
-    df['nama_shipper_norm'] = df['nama_shipper'].str.strip().str.lower()
-    df['truck_type_norm'] = df['tipe_truk'].str.strip().str.lower()
-    df['origin_city_norm'] = df['origin_city_name'].str.strip().str.lower()
-    df['destination_city_norm'] = df['destination_city_name'].str.strip().str.lower()
-    return df
+        df['origin_norm'] = df['origin_location_name'].str.strip().str.lower()
+        df['destination_norm'] = df['destination_location_name'].str.strip().str.lower()
+        df['multi_drop_norm'] = df['multi_drop'].fillna('').str.lower()
+        df['nama_shipper_norm'] = df['nama_shipper'].str.strip().str.lower()
+        df['truck_type_norm'] = df['tipe_truk'].str.strip().str.lower()
+        df['origin_city_norm'] = df['origin_city_name'].str.strip().str.lower()
+        df['destination_city_norm'] = df['destination_city_name'].str.strip().str.lower()
+        return df
+    except FileNotFoundError:
+        st.error("❌ Data file not found. Please make sure 'q_tp_record_2025-04-19.csv' is in the project directory.")
+        return pd.DataFrame()  # Return empty DataFrame so the app doesn't break
 
-uploaded_file = st.file_uploader("Upload your delivery order CSV file", type="csv")
-
-if uploaded_file is not None:
-    data = load_data(uploaded_file)
-    st.success("Data loaded successfully!")
-    st.write(data.head())  # You can replace with your main logic
-else:
-    st.warning("Please upload a CSV file to continue.")
+data = load_data()
 
 
 # --- SIDEBAR NAVIGATION ---
