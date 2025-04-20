@@ -1,2 +1,13 @@
 pandas
+numpy
 streamlit
+openpyxl
+fuzzywuzzy
+python-Levenshtein
+geopy
+scikit-learn
+xlsxwriter
+altair
+matplotlib
+plotly
+requests
