@@ -8,7 +8,7 @@ from io import BytesIO
 @st.cache_data
 def load_data():
     try:
-        df = pd.read_csv('q_tp_record_2025-04-13T07_02_58.867855Z')  # Make sure this file is in the same folder
+        df = pd.read_csv('q_tp_record_2025-04-13T07_02_58.867855Z.csv')  # Make sure this file is in the same folder
         df['nama_shipper'] = df['nama_shipper'].fillna('Unknown')
         df = df[~df['trip_status'].isin(['Cancel', 'Unfulfill', 'Open'])]
 
