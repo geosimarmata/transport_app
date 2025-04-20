@@ -67,8 +67,8 @@ if selected_section == 'Tiering System':
 
         mask_destination_city = (data['destination_city_norm'].isin([c.strip().lower() for c in input_destination_cities])) | ('ALL' in input_destination_cities)
 
-        matched_routes = data[
-            mask_origin & mask_origin_city & mask_truck_type &
+        matched_routes = data[ 
+            mask_origin & mask_origin_city & mask_truck_type & 
             mask_shipper & mask_destination & mask_destination_city
         ]
 
