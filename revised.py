@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import re
 import difflib
 from io import BytesIO
 
@@ -65,8 +66,8 @@ if selected_section == 'Tiering System':
 
         mask_destination_city = (data['destination_city_norm'].isin([c.strip().lower() for c in input_destination_cities])) | ('ALL' in input_destination_cities)
 
-        matched_routes = data[ 
-            mask_origin & mask_origin_city & mask_truck_type & 
+        matched_routes = data[
+            mask_origin & mask_origin_city & mask_truck_type &
             mask_shipper & mask_destination & mask_destination_city
         ]
 
@@ -177,27 +178,23 @@ elif selected_section == 'Upload DO File':
             return ", ".join(tier1), ", ".join(tier2), ", ".join(tier3)
 
         if st.button("▶️ Generate Vendor Recommendation"):
-            new_rows = []
-            for _, do_row in do_data.iterrows():
-                tier1, tier2, tier3 = recommend_vendors_tiered(do_row, data)
-                new_rows.append({
-                    **do_row.to_dict(),
-                    'Tier 1 Vendors': tier1,
-                    'Tier 2 Vendors': tier2,
-                    'Tier 3 Vendors': tier3
-                })
+            new_rows = do_data.copy()  # We process all rows for recommendation
+            new_rows[['Tier 1 Vendors', 'Tier 2 Vendors', 'Tier 3 Vendors']] = new_rows.apply(
+                lambda row: pd.Series(recommend_vendors_tiered(row, data)), axis=1
+            )
 
-            # Create new dataframe with recommendations
-            new_data = pd.DataFrame(new_rows)
-            if not new_data.empty:
-                st.write("📋 Recommended Vendors for Uploaded DO File:")
-                st.write(new_data[['trip_id', 'Tier 1 Vendors', 'Tier 2 Vendors', 'Tier 3 Vendors']])
-                to_excel = to_excel_download(new_data)
-                st.download_button("Download Updated DO File", to_excel, file_name="updated_do_file.xlsx")
+            st.success("Vendor recommendations generated for new DO entries.")
+            st.write(new_rows)
 
-def to_excel_download(df):
-    # Convert dataframe to Excel for download
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        df.to_excel(writer, sheet_name="DO Recommendations", index=False)
-    return output.getvalue()
+            # Store for download
+            to_download = new_rows.copy()
+            to_download_file = BytesIO()
+            to_download.to_excel(to_download_file, index=False)
+            to_download_file.seek(0)
+
+            st.download_button(
+                label="💾 Download Recommended DO File",
+                data=to_download_file,
+                file_name="recommended_do.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
