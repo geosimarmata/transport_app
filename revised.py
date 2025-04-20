@@ -26,10 +26,9 @@ def load_data():
 
 data = load_data()
 
-
 # --- SIDEBAR NAVIGATION ---
 st.title("🚚 Vendor Tiering System")
-st. sidebar.header("🔍 Navigation")
+st.sidebar.header("🔍 Navigation")
 selected_section = st.sidebar.selectbox("Select Section", ['Tiering System', 'Vendor Filtering', 'Upload DO File'])
 
 # ---------------- TIERING SYSTEM ----------------
@@ -93,7 +92,7 @@ if selected_section == 'Tiering System':
             st.write(vendor_stats.head(10))
 
             st.subheader("📋 Detailed Delivery Records:")
-            detailed_records = matched_routes[[
+            detailed_records = matched_routes[[ 
                 'nama_vendor', 'origin_location_name', 'matched_destination_display',
                 'origin_city_name', 'destination_city_name', 'tipe_truk', 'tanggal_muat', 'multi_drop', 'nama_shipper'
             ]].rename(columns={'matched_destination_display': 'destination_location_display'})
@@ -188,6 +187,7 @@ elif selected_section == 'Upload DO File':
             ]
             st.session_state.DO_processed_key.update(new_rows['trip_id'].astype(str))
 
+            # Apply the recommendation function and unpack results into the correct columns
             new_rows[['Tier 1 Vendors', 'Tier 2 Vendors', 'Tier 3 Vendors']] = new_rows.apply(
                 lambda row: pd.Series(recommend_vendors_tiered(row, data)), axis=1
             )
