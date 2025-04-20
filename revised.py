@@ -5,9 +5,14 @@ import difflib
 from io import BytesIO
 
 # Load historical trip data
+import pandas as pd
+import streamlit as st
+
+st.title("JEJE Vendor Tiering & Recommendation System")
+
 @st.cache_data
-def load_data():
-    df = pd.read_csv('E:\# AI Project\JEJE\q_tp_record_2025-04-19T09_39_03.738736Z.csv')
+def load_data(uploaded_file):
+    df = pd.read_csv(uploaded_file)
     df['nama_shipper'] = df['nama_shipper'].fillna('Unknown')
     df = df[~df['trip_status'].isin(['Cancel', 'Unfulfill', 'Open'])]
 
@@ -20,11 +25,19 @@ def load_data():
     df['destination_city_norm'] = df['destination_city_name'].str.strip().str.lower()
     return df
 
-data = load_data()
+uploaded_file = st.file_uploader("Upload your delivery order CSV file", type="csv")
+
+if uploaded_file is not None:
+    data = load_data(uploaded_file)
+    st.success("Data loaded successfully!")
+    st.write(data.head())  # You can replace with your main logic
+else:
+    st.warning("Please upload a CSV file to continue.")
+
 
 # --- SIDEBAR NAVIGATION ---
 st.title("🚚 Vendor Tiering System")
-st.sidebar.header("🔍 Navigation")
+st. sidebar.header("🔍 Navigation")
 selected_section = st.sidebar.selectbox("Select Section", ['Tiering System', 'Vendor Filtering', 'Upload DO File'])
 
 # ---------------- TIERING SYSTEM ----------------
