@@ -130,10 +130,6 @@ elif selected_section == 'Upload DO File':
         st.write("📋 Uploaded DO Preview:")
         st.write(do_data.head())
 
-        # Prevent duplicate processing
-        if 'DO_processed_key' not in st.session_state:
-            st.session_state.DO_processed_key = set()
-
         def fuzzy_match(val, options, cutoff=0.6):
             match = difflib.get_close_matches(val.strip().lower(), options, n=1, cutoff=cutoff)
             return match[0] if match else None
@@ -181,18 +177,15 @@ elif selected_section == 'Upload DO File':
             return ", ".join(tier1), ", ".join(tier2), ", ".join(tier3)
 
         if st.button("▶️ Generate Vendor Recommendation"):
-            # Prevent duplicate trips from being processed
             new_rows = []
             for _, do_row in do_data.iterrows():
-                if do_row['trip_id'] not in st.session_state.DO_processed_key:
-                    tier1, tier2, tier3 = recommend_vendors_tiered(do_row, data)
-                    new_rows.append({
-                        **do_row.to_dict(),
-                        'Tier 1 Vendors': tier1,
-                        'Tier 2 Vendors': tier2,
-                        'Tier 3 Vendors': tier3
-                    })
-                    st.session_state.DO_processed_key.add(do_row['trip_id'])
+                tier1, tier2, tier3 = recommend_vendors_tiered(do_row, data)
+                new_rows.append({
+                    **do_row.to_dict(),
+                    'Tier 1 Vendors': tier1,
+                    'Tier 2 Vendors': tier2,
+                    'Tier 3 Vendors': tier3
+                })
 
             # Create new dataframe with recommendations
             new_data = pd.DataFrame(new_rows)
