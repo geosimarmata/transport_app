@@ -8,7 +8,7 @@ from io import BytesIO
 @st.cache_data
 def load_data():
     try:
-        df = pd.read_csv('q_tp_record_2025-04-13T07_02_58.867855Z.csv')  # Make sure this file is in the same folder
+        df = pd.read_csv('q_tp_record_2025-04-13T07_02_58.867855Z.csv')
         df['nama_shipper'] = df['nama_shipper'].fillna('Unknown')
         df = df[~df['trip_status'].isin(['Cancel', 'Unfulfill', 'Open'])]
 
@@ -21,8 +21,8 @@ def load_data():
         df['destination_city_norm'] = df['destination_city_name'].str.strip().str.lower()
         return df
     except FileNotFoundError:
-        st.error("❌ Data file not found. Please make sure 'q_tp_record_2025-04-19.csv' is in the project directory.")
-        return pd.DataFrame()  # Return empty DataFrame so the app doesn't break
+        st.error("❌ Data file not found. Please make sure the correct file is in the project directory.")
+        return pd.DataFrame()
 
 data = load_data()
 
@@ -131,70 +131,81 @@ elif selected_section == 'Upload DO File':
         st.write("📋 Uploaded DO Preview:")
         st.write(do_data.head())
 
-        def fuzzy_match(val, options, cutoff=0.6):
-            match = difflib.get_close_matches(val.strip().lower(), options, n=1, cutoff=cutoff)
-            return match[0] if match else None
+        # Optional: Check required columns
+        required_columns = [
+            'origin_location_name', 'destination_location_name',
+            'tipe_truk', 'nama_shipper',
+            'origin_city_name', 'destination_city_name'
+        ]
+        missing_cols = [col for col in required_columns if col not in do_data.columns]
+        if missing_cols:
+            st.error(f"❌ The uploaded DO file is missing these columns: {', '.join(missing_cols)}")
+        else:
+            def fuzzy_match(val, options, cutoff=0.6):
+                if pd.isnull(val):
+                    return None
+                val = str(val).strip().lower()
+                options = [str(opt).strip().lower() for opt in options if pd.notnull(opt)]
+                match = difflib.get_close_matches(val, options, n=1, cutoff=cutoff)
+                return match[0] if match else None
 
-        def recommend_vendors_tiered(do_row, historical_data, max_per_tier=5):
-            origin = do_row['origin_location_name']
-            destination = do_row['destination_location_name']
-            truck = do_row['tipe_truk']
-            shipper = do_row['nama_shipper']
+            def recommend_vendors_tiered(do_row, historical_data, max_per_tier=5):
+                origin = do_row['origin_location_name']
+                destination = do_row['destination_location_name']
+                truck = do_row['tipe_truk']
+                shipper = do_row['nama_shipper']
 
-            matches = historical_data[
-                (historical_data['origin_location_name'] == origin) &
-                (historical_data['destination_location_name'] == destination) &
-                (historical_data['tipe_truk'] == truck) &
-                (historical_data['nama_shipper'] == shipper)
-            ]
+                matches = historical_data[
+                    (historical_data['origin_location_name'] == origin) &
+                    (historical_data['destination_location_name'] == destination) &
+                    (historical_data['tipe_truk'] == truck) &
+                    (historical_data['nama_shipper'] == shipper)
+                ]
 
-            # Fallback: fuzzy match origin/destination
-            if matches.empty:
-                origin_match = fuzzy_match(origin, historical_data['origin_location_name'].dropna().unique())
-                dest_match = fuzzy_match(destination, historical_data['destination_location_name'].dropna().unique())
-                if origin_match and dest_match:
+                if matches.empty:
+                    origin_match = fuzzy_match(origin, historical_data['origin_location_name'].dropna().unique())
+                    dest_match = fuzzy_match(destination, historical_data['destination_location_name'].dropna().unique())
+                    if origin_match and dest_match:
+                        matches = historical_data[
+                            (historical_data['origin_location_name'] == origin_match) &
+                            (historical_data['destination_location_name'] == dest_match) &
+                            (historical_data['tipe_truk'] == truck)
+                        ]
+
+                if matches.empty:
                     matches = historical_data[
-                        (historical_data['origin_location_name'] == origin_match) &
-                        (historical_data['destination_location_name'] == dest_match) &
+                        (historical_data['origin_city_name'] == do_row['origin_city_name']) &
+                        (historical_data['destination_city_name'] == do_row['destination_city_name']) &
                         (historical_data['tipe_truk'] == truck)
                     ]
 
-            # Fallback: city-level
-            if matches.empty:
-                matches = historical_data[
-                    (historical_data['origin_city_name'] == do_row['origin_city_name']) &
-                    (historical_data['destination_city_name'] == do_row['destination_city_name']) &
-                    (historical_data['tipe_truk'] == truck)
-                ]
+                if matches.empty:
+                    return "", "", ""
 
-            if matches.empty:
-                return "", "", ""
+                vendor_counts = matches['nama_vendor'].value_counts()
+                tier1 = vendor_counts.head(max_per_tier).index.tolist()
+                tier2 = vendor_counts.iloc[max_per_tier:max_per_tier*2].index.tolist()
+                tier3 = vendor_counts.iloc[max_per_tier*2:max_per_tier*3].index.tolist()
 
-            vendor_counts = matches['nama_vendor'].value_counts()
-            tier1 = vendor_counts.head(max_per_tier).index.tolist()
-            tier2 = vendor_counts.iloc[max_per_tier:max_per_tier*2].index.tolist()
-            tier3 = vendor_counts.iloc[max_per_tier*2:max_per_tier*3].index.tolist()
+                return ", ".join(tier1), ", ".join(tier2), ", ".join(tier3)
 
-            return ", ".join(tier1), ", ".join(tier2), ", ".join(tier3)
+            if st.button("▶️ Generate Vendor Recommendation"):
+                new_rows = do_data.copy()
+                new_rows[['Tier 1 Vendors', 'Tier 2 Vendors', 'Tier 3 Vendors']] = new_rows.apply(
+                    lambda row: pd.Series(recommend_vendors_tiered(row, data)), axis=1
+                )
 
-        if st.button("▶️ Generate Vendor Recommendation"):
-            new_rows = do_data.copy()  # We process all rows for recommendation
-            new_rows[['Tier 1 Vendors', 'Tier 2 Vendors', 'Tier 3 Vendors']] = new_rows.apply(
-                lambda row: pd.Series(recommend_vendors_tiered(row, data)), axis=1
-            )
+                st.success("Vendor recommendations generated for new DO entries.")
+                st.write(new_rows)
 
-            st.success("Vendor recommendations generated for new DO entries.")
-            st.write(new_rows)
+                to_download = new_rows.copy()
+                to_download_file = BytesIO()
+                to_download.to_excel(to_download_file, index=False)
+                to_download_file.seek(0)
 
-            # Store for download
-            to_download = new_rows.copy()
-            to_download_file = BytesIO()
-            to_download.to_excel(to_download_file, index=False)
-            to_download_file.seek(0)
-
-            st.download_button(
-                label="💾 Download Recommended DO File",
-                data=to_download_file,
-                file_name="recommended_do.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+                st.download_button(
+                    label="💾 Download Recommended DO File",
+                    data=to_download_file,
+                    file_name="recommended_do.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
